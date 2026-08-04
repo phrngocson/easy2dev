@@ -99,11 +99,31 @@ class SpecContractValidatorTests(unittest.TestCase):
         self.write("PROJECTSTATUS.md", self.project_status())
         self.write("BUILDLOG.md", self.build_log())
 
-    def checks(self, require_openspec: bool = True, require_records: bool = True) -> list[validator.Check]:
-        return validator.validate(self.root, require_openspec, require_records)
+    def checks(
+        self,
+        require_openspec: bool = True,
+        require_records: bool = True,
+        spec_language: str | None = None,
+    ) -> list[validator.Check]:
+        return validator.validate(
+            self.root,
+            require_openspec,
+            require_records,
+            spec_language,
+        )
 
-    def check(self, name: str, require_openspec: bool = True, require_records: bool = True) -> validator.Check:
-        return next(item for item in self.checks(require_openspec, require_records) if item.name == name)
+    def check(
+        self,
+        name: str,
+        require_openspec: bool = True,
+        require_records: bool = True,
+        spec_language: str | None = None,
+    ) -> validator.Check:
+        return next(
+            item
+            for item in self.checks(require_openspec, require_records, spec_language)
+            if item.name == name
+        )
 
     def test_valid_brownfield_delta_and_project_records_pass(self) -> None:
         self.write_valid_fixture()
@@ -220,6 +240,72 @@ class SpecContractValidatorTests(unittest.TestCase):
         result = self.check("delta_semantics")
         self.assertEqual(result.status, "FAIL")
         self.assertIn("no ADDED/MODIFIED/REMOVED", result.detail)
+
+    def test_vietnamese_spec_language_contract_passes(self) -> None:
+        self.write_valid_fixture()
+        marker = "<!-- easy2dev-spec-language: vi -->\n\n"
+        baseline = (
+            marker
+            + self.baseline()
+            .replace("Authentication Specification", "Đặc tả xác thực")
+            .replace("Define account access.", "Xác định hành vi truy cập tài khoản.")
+            .replace("Register account", "Đăng ký tài khoản")
+            .replace("The system SHALL create one valid account.", "Hệ thống PHẢI tạo đúng một tài khoản hợp lệ.")
+            .replace("Valid registration", "Đăng ký hợp lệ")
+            .replace("valid data is submitted", "khách gửi dữ liệu hợp lệ")
+            .replace("one account is created", "một tài khoản được tạo")
+        )
+        delta = (
+            marker
+            + self.delta()
+            .replace("Authentication Delta", "Thay đổi đặc tả xác thực")
+            .replace("Register account", "Đăng ký tài khoản")
+            .replace("The system SHALL reject duplicate identity.", "Hệ thống PHẢI từ chối danh tính trùng lặp.")
+            .replace("Duplicate registration", "Đăng ký trùng lặp")
+            .replace("an existing identity is submitted", "người dùng gửi danh tính đã tồn tại")
+            .replace("registration is rejected", "yêu cầu đăng ký bị từ chối")
+            .replace("Logout account", "Đăng xuất tài khoản")
+            .replace("The system SHALL end the active session.", "Hệ thống PHẢI kết thúc phiên đang hoạt động.")
+            .replace("Valid logout", "Đăng xuất hợp lệ")
+            .replace("an authenticated user logs out", "người dùng đã xác thực đăng xuất")
+            .replace("the session is revoked", "phiên bị thu hồi")
+        )
+        self.write("openspec/specs/authentication/spec.md", baseline)
+        self.write(
+            "openspec/changes/strengthen-authentication/specs/authentication/spec.md",
+            delta,
+        )
+        result = self.check("spec_language", spec_language="vi")
+        self.assertEqual(result.status, "PASS")
+        self.assertIn("2 current spec file", result.detail)
+
+    def test_spec_language_contract_rejects_missing_or_wrong_marker(self) -> None:
+        self.write_valid_fixture()
+        missing = self.check("spec_language", spec_language="vi")
+        self.assertEqual(missing.status, "FAIL")
+        self.assertIn("has no", missing.detail)
+
+        marker = "<!-- easy2dev-spec-language: en -->\n\n"
+        self.write("openspec/specs/authentication/spec.md", marker + self.baseline())
+        self.write(
+            "openspec/changes/strengthen-authentication/specs/authentication/spec.md",
+            marker + self.delta(),
+        )
+        wrong = self.check("spec_language", spec_language="vi")
+        self.assertEqual(wrong.status, "FAIL")
+        self.assertIn("expected 'vi'", wrong.detail)
+
+    def test_spec_language_contract_rejects_english_prose_marked_as_vietnamese(self) -> None:
+        self.write_valid_fixture()
+        marker = "<!-- easy2dev-spec-language: vi -->\n\n"
+        self.write("openspec/specs/authentication/spec.md", marker + self.baseline())
+        self.write(
+            "openspec/changes/strengthen-authentication/specs/authentication/spec.md",
+            marker + self.delta(),
+        )
+        result = self.check("spec_language", spec_language="vi")
+        self.assertEqual(result.status, "FAIL")
+        self.assertIn("no Vietnamese-language prose evidence", result.detail)
 
     def test_project_status_must_be_concise_and_complete(self) -> None:
         self.write_valid_fixture()

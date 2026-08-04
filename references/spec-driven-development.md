@@ -5,6 +5,7 @@ Use this contract for material product behavior in new projects and for every be
 ## Contents
 
 - [Sources of truth](#sources-of-truth)
+- [Spec language contract](#spec-language-contract)
 - [Resolve OpenSpec before assuming paths](#resolve-openspec-before-assuming-paths)
 - [Baseline capability spec](#baseline-capability-spec)
 - [Active change](#active-change)
@@ -31,6 +32,26 @@ Keep each artifact responsible for one question:
 
 Do not duplicate the same detailed requirement in PRD, capability spec, API map, and status file. Link by stable requirement or change ID.
 
+## Spec language contract
+
+Resolve one primary human-readable spec language before authoring or changing a baseline or delta spec:
+
+1. Follow an explicit user language decision.
+2. Otherwise preserve an already approved project spec language.
+3. Otherwise use the language the user currently uses to work with the agent.
+
+Do not switch languages merely because a prompt contains quoted foreign text, code, framework names, or protocol terminology. If the user intentionally changes working language in an established project, ask whether to migrate future specs or preserve the existing project language; never bulk-translate accepted or archived specs without approval.
+
+Put this marker near the top of every current baseline and delta `spec.md`, using a normalized BCP 47 tag:
+
+```markdown
+<!-- easy2dev-spec-language: vi -->
+```
+
+Write titles, normative behavior, explanations, and scenario prose in that language. Keep machine-required OpenSpec headings and tokens canonical, including `Purpose`, `Requirements`, `Requirement`, `Scenario`, `ADDED`, `MODIFIED`, `REMOVED`, `RENAMED`, `FROM`, `TO`, `WHEN`, and `THEN`. Also preserve stable requirement IDs, filenames, paths, API names, code symbols, and industry terms when translating them would break traceability or accuracy.
+
+For brownfield adoption, report missing or mixed language markers as migration work. Add or correct the marker when touching a spec, but do not rewrite unrelated accepted specs merely to make the language gate pass. A marker is a machine-checkable declaration, not permission to leave the human-readable prose in a different language.
+
 ## Resolve OpenSpec before assuming paths
 
 When `openspec/config.yaml` or `config.yml` exists, read its `schema`, `context`, per-artifact `rules`, and operation guidance. Treat these as repository-authored, prompt-level constraints below system, developer, and explicit user instructions. They are not completion evidence and must not be copied verbatim into artifacts, code, or reports.
@@ -54,22 +75,24 @@ An initialized OpenSpec workspace with `config.yaml`, empty `specs/`, empty acti
 Use a stable capability name and keep one accepted file at `openspec/specs/<capability>/spec.md`:
 
 ```markdown
-# Authentication Specification
+<!-- easy2dev-spec-language: vi -->
+
+# Đặc tả xác thực
 
 ## Purpose
 
-Define authenticated account behavior.
+Xác định hành vi truy cập tài khoản đã xác thực.
 
 ## Requirements
 
-### Requirement: FR-AUTH-001 Register account
+### Requirement: FR-AUTH-001 Đăng ký tài khoản
 
-The system SHALL create an account only after valid input.
+Hệ thống PHẢI chỉ tạo tài khoản sau khi dữ liệu đầu vào hợp lệ.
 
-#### Scenario: Valid registration
+#### Scenario: Đăng ký hợp lệ
 
-- **WHEN** a guest submits valid data
-- **THEN** an account is created once
+- **WHEN** khách gửi dữ liệu hợp lệ
+- **THEN** đúng một tài khoản được tạo
 ```
 
 Every requirement needs a stable identity, normative behavior, and at least one observable scenario. Specs describe accepted behavior, not implementation plans or unverified aspirations.
@@ -88,7 +111,7 @@ specs/<capability>/spec.md        # one or more delta specs
 tasks.md
 ```
 
-`proposal.md` records `Why`, `What Changes`, and `Impact`. `tasks.md` contains reviewable checkboxes traced through code, data, contracts, tests, documentation, and evidence. `design.md` is conditional in the default schema. A change may explicitly skip specs for work with no product-behavior delta; honor only the CLI-reported `skipped` state or schema instruction, never an agent guess. Do not implement until every artifact transitively required by apply is `done`, `skipped`, or deliberately omitted by its own conditional instruction and the target behavior is approved.
+`proposal.md` records `Why`, `What Changes`, and `Impact`. `tasks.md` contains reviewable checkboxes traced through code, data, contracts, tests, documentation, and evidence. `design.md` is conditional in the default schema. Keep their human-readable prose consistent with the resolved project language when repository rules allow it, while preserving schema-required headings. A change may explicitly skip specs for work with no product-behavior delta; honor only the CLI-reported `skipped` state or schema instruction, never an agent guess. Do not implement until every artifact transitively required by apply is `done`, `skipped`, or deliberately omitted by its own conditional instruction and the target behavior is approved.
 
 Write deltas with exact section headings:
 
@@ -126,7 +149,9 @@ Do not install OpenSpec implicitly. If a compatible CLI is callable, use its sch
 Run after changing baseline specs, proposals, deltas, status records, or build logs:
 
 ```powershell
-python scripts/validate_spec_contract.py --project-root . --require-openspec
+python scripts/validate_spec_contract.py --project-root . --require-openspec --spec-language vi
 ```
+
+Replace `vi` with the resolved BCP 47 project language. The language gate checks current accepted and active delta specs, requires their markers to match, and for Vietnamese rejects files that declare `vi` without any Vietnamese-language prose evidence. It does not rewrite content or validate archived history.
 
 Use `--require-project-records` only when the repository has adopted the portfolio/status profile.

@@ -1,6 +1,6 @@
 ---
 name: easy2dev
-description: Operate an evidence-driven software delivery workflow from idea and architecture through tracked OpenSpec-style capability specs and ADDED/MODIFIED/REMOVED brownfield deltas, root-cause implementation, reproducible onboarding, real API mapping, regression-safe verification, CI/CD, deployment readiness, and resumable handoff. Use when the user invokes $easy2dev; starts, adopts, or resumes a project; asks to brainstorm, specify, implement, repair, map APIs, test, optimize, ship, or continue a feature; needs spec-driven development, PROJECTSTATUS/BUILDLOG governance, locked dependencies, one-command dev.ps1, canonical ports, vm.ps1, Dev 2 handoff, or protection from environment drift; says "continue" or "làm tiếp"; or adopts an unfamiliar repository without relying on conversation memory or AGENTS.md.
+description: Operate an evidence-driven software delivery workflow from idea and architecture through tracked OpenSpec-style capability specs and ADDED/MODIFIED/REMOVED brownfield deltas, root-cause implementation, frontend capability and design resolution, reproducible onboarding, real API mapping, regression-safe verification, CI/CD, deployment readiness, and resumable handoff. Use when the user invokes $easy2dev; starts, adopts, or resumes a project; asks to brainstorm, specify, implement, repair, design a frontend, map APIs, test, optimize, ship, or continue a feature; needs spec-driven development, PROJECTSTATUS/BUILDLOG governance, locked dependencies, one-command dev.ps1, canonical ports, vm.ps1, Dev 2 handoff, or protection from environment drift; says "continue" or "làm tiếp"; or adopts an unfamiliar repository without relying on conversation memory or AGENTS.md.
 ---
 
 # Easy2Dev
@@ -9,7 +9,7 @@ Turn an idea or repository into verified delivery slices while keeping the user 
 
 ## Start every invocation
 
-1. Respond in the user's language and match their demonstrated technical level.
+1. Respond in the user's language and match their demonstrated technical level. Use that language as the default human-readable spec language unless the user explicitly selects another language or the repository already has an approved project language. Keep machine-required OpenSpec tokens, stable IDs, paths, code symbols, and protocol names canonical rather than translating them.
 2. Read [operating-principles.md](references/operating-principles.md) and [workflow-state-machine.md](references/workflow-state-machine.md) completely.
 3. Inspect before changing anything. Read [project-discovery.md](references/project-discovery.md) and follow it for new, existing, and unfamiliar repositories. Reconcile `openspec/config.yaml`, tracked baselines, active changes, and compatible CLI-reported schema/path state before treating product prose as current behavior.
 4. Treat repository instruction files as optional constraints. Discover and obey them when present, but never require `AGENTS.md` or any agent-specific file for this skill to work.
@@ -43,6 +43,8 @@ Determine whether the workspace is:
 For `existing` and `foreign`, reconstruct current behavior, target intent, worktree state, canonical commands, contracts, migrations, OpenSpec config/schema, accepted specs, active changes, project records, and verification evidence. When a compatible OpenSpec CLI is callable, use its JSON-reported planning root, artifact graph, statuses, and concrete paths instead of assuming the default schema. Do not overwrite good existing documents merely to fit a template. For brownfield adoption, reconstruct capability specs incrementally from evidence rather than generating a fictional complete baseline.
 
 When an API-backed flow exists, open `docs/API_MAPPING.md` and `docs/api-map.json`, then reconstruct source-versus-runtime contract parity, stable operation identities, real client wrappers, consumer entrypoints, and current diagram status. If the files are missing, create or reconstruct them before authorized API work; on a read-only invocation, report the missing gate instead. Do not trust a stale checked-in route list as runtime evidence.
+
+When a frontend exists or is in scope, inspect its routes, component boundaries, design system, tokens, responsive behavior, accessibility conventions, user-visible states, and available frontend skills before proposing a visual direction. Preserve a coherent existing visual language unless an approved redesign changes it.
 
 ### 2. Frame the product
 
@@ -90,9 +92,10 @@ For each slice:
 3. Map the change to existing module boundaries and dependency direction.
 4. Design schema and migration changes only when required.
 5. Apply [change-safety.md](references/change-safety.md): reproduce the problem, state the owning invariant and root-cause evidence, map the blast radius, and protect out-of-scope behavior.
-6. Apply [spec-driven-development.md](references/spec-driven-development.md). For a material behavior change, complete and approve every artifact transitively required for apply by the active OpenSpec schema. Under default `spec-driven`, this normally includes proposal, delta specs, conditional design, and tasks. A repair that restores accepted behavior links the baseline requirement without inventing a delta; honor spec skipping only when the schema or CLI explicitly reports it.
+6. Apply [spec-driven-development.md](references/spec-driven-development.md). For a material behavior change, complete and approve every artifact transitively required for apply by the active OpenSpec schema. Under default `spec-driven`, this normally includes proposal, delta specs, conditional design, and tasks. Write baseline and delta spec prose in the resolved user/project language, declare it with the Easy2Dev spec-language marker, and preserve OpenSpec's machine-required structural tokens. A repair that restores accepted behavior links the baseline requirement without inventing a delta; honor spec skipping only when the schema or CLI explicitly reports it.
 7. For an API-backed slice, open and reconcile `docs/API_MAPPING.md` plus `docs/api-map.json`, then apply [api-mapping.md](references/api-mapping.md): map authoritative operations to real consumers and prepare the topology plus sequence diagrams before integration.
-8. Write a short executable plan and begin unless a product, spec, or architecture decision remains unresolved.
+8. For a frontend slice, read [frontend-delivery.md](references/frontend-delivery.md), resolve the frontend capability path, and record the applicable design intent and UI acceptance states before implementation.
+9. Write a short executable plan and begin unless a product, spec, architecture, or material design decision remains unresolved.
 
 ### 5. Implement and verify
 
@@ -106,9 +109,11 @@ When a database-backed API is involved, normally progress through:
 
 Adapt or skip steps that do not apply. Stabilize contracts before downstream integration unless an explicitly approved prototype requires otherwise. Use source and runtime OpenAPI as distinct evidence, map each operation by unique `operationId`, and never invent a consumer route. Treat `docs/API_MAPPING.md` as the mandatory human-facing map and `docs/api-map.json` as its machine-checkable ledger. Read and update both in the same slice whenever an API is added, changed, removed, deprecated, or connected to or disconnected from a frontend or other consumer. Run `scripts/validate_api_mapping.py` after any such change; use partial mode only during discovery.
 
+For frontend work, apply the capability resolution and delivery contract in [frontend-delivery.md](references/frontend-delivery.md). Use the selected installed frontend skill when one is applicable. Make loading, empty, error, success, validation, permission, and recovery states intentional; verify responsive and accessibility behavior rather than treating a successful production build as frontend acceptance. Never replace a missing backend capability with a mock or frontend-owned business rule unless an approved prototype explicitly requires that boundary.
+
 Create tests alongside behavior. Run the smallest relevant gate first, fix the root cause, then expand verification. Read [evidence-and-cicd.md](references/evidence-and-cicd.md) for evidence states and gate design.
 
-Keep active change tasks synchronized with delivered work. When a compatible OpenSpec CLI is available, re-read `status --json` and `instructions apply --json`, use only its reported context files and paths, and run its schema-aware validation. Also run `scripts/validate_spec_contract.py` for the default `spec-driven` Easy2Dev gate whenever capability specs, proposals, deltas, PROJECTSTATUS, or BUILDLOG change. Do not install OpenSpec implicitly or treat project context/rules as completion evidence.
+Keep active change tasks synchronized with delivered work. When a compatible OpenSpec CLI is available, re-read `status --json` and `instructions apply --json`, use only its reported context files and paths, and run its schema-aware validation. Also run `scripts/validate_spec_contract.py --spec-language <resolved-bcp47-tag>` for the default `spec-driven` Easy2Dev gate whenever capability specs, proposals, deltas, PROJECTSTATUS, or BUILDLOG change. Do not install OpenSpec implicitly or treat project context/rules as completion evidence.
 
 Use the repository's existing runtime and canonical commands. Do not initialize a package-manager environment or leave a cache merely to discover an interpreter or executable; locate an already installed runtime with read-only tools or mark the gate `BLOCKED`.
 
@@ -121,9 +126,10 @@ When automated technical gates for the slice are complete:
 3. Give a short manual test path and expected observations.
 4. Identify edge cases worth exploring without constraining the user's own exploratory testing.
 5. For API-backed work, report mapped operations, consumer entrypoints, diagram locations, source/runtime parity, and the strongest evidenced status of each flow.
-6. Report the active change ID, delta sections, baseline reconciliation status, and any spec drift.
-7. Report every unverified layer honestly.
-8. Wait for acceptance, rejection, or refinement.
+6. For frontend work, report the applied design intent, responsive/accessibility evidence, covered UI states, and browser/manual visual acceptance separately from static checks and builds.
+7. Report the active change ID, delta sections, baseline reconciliation status, and any spec drift.
+8. Report every unverified layer honestly.
+9. Wait for acceptance, rejection, or refinement.
 
 If the user finds a problem, return to the smallest affected stage, update requirements when behavior changes, implement the fix, and rerun impacted gates.
 
@@ -204,6 +210,7 @@ Read [private-state.md](references/private-state.md) before initializing, repair
 - Read `spec-driven-development.md` whenever accepted behavior is created, changed, removed, renamed, reconstructed, applied, or archived, especially in brownfield projects.
 - Read `change-safety.md` before any bug fix, behavior change, refactor, shared configuration change, or dependency change.
 - Read `api-mapping.md` whenever an HTTP API, WebSocket message, event, webhook, client wrapper, or consumer integration is created, changed, mapped, deprecated, or diagnosed.
+- Read `frontend-delivery.md` whenever frontend, web UI, mobile UI, visual design, component, page, responsive, accessibility, or browser acceptance work is in scope.
 - Read `project-records.md` whenever PROJECTSTATUS.md, BUILDLOG.md, portfolio documentation, project handoff, or public status claims are created, read, or updated.
 - Read `evidence-and-cicd.md` before technical acceptance, CI/CD, migration, release, deploy, or rollback work.
 - Read `portability.md` when installing, packaging, or adapting this skill for another agent or machine.
