@@ -35,6 +35,14 @@ BUILDLOG_HEADER_RE = re.compile(
     r"^##\s+(\d{4}-\d{2}-\d{2}(?:T[^|\r\n]+)?)\s*\|[^\r\n]*",
     re.MULTILINE,
 )
+SPEC_LANGUAGE_MARKER_RE = re.compile(
+    r"<!--\s*easy2dev-spec-language:\s*([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)\s*-->",
+    re.IGNORECASE,
+)
+VIETNAMESE_PROSE_RE = re.compile(
+    r"[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -254,6 +262,64 @@ def active_change_checks(
     return structure_errors, delta_errors, delta_operations
 
 
+def normalize_language_tag(value: str) -> str:
+    return value.strip().replace("_", "-").lower()
+
+
+def current_spec_files(openspec_root: Path) -> list[Path]:
+    files = list((openspec_root / "specs").glob("*/spec.md"))
+    changes_root = openspec_root / "changes"
+    if changes_root.is_dir():
+        for change in changes_root.iterdir():
+            if change.is_dir() and change.name != "archive":
+                files.extend((change / "specs").glob("*/spec.md"))
+    return sorted(set(files))
+
+
+def spec_language_check(root: Path, openspec_root: Path, expected_language: str | None) -> Check:
+    if not expected_language:
+        return Check(
+            "spec_language",
+            "N/A",
+            "no expected spec language was supplied",
+        )
+    expected = normalize_language_tag(expected_language)
+    errors: list[str] = []
+    files = current_spec_files(openspec_root)
+    for path in files:
+        label = relative(path, root)
+        text, read_error = read_text(path)
+        if read_error:
+            errors.append(read_error)
+            continue
+        markers = [normalize_language_tag(value) for value in SPEC_LANGUAGE_MARKER_RE.findall(text)]
+        if not markers:
+            errors.append(
+                f"{label} has no '<!-- easy2dev-spec-language: {expected} -->' marker"
+            )
+            continue
+        if len(markers) > 1:
+            errors.append(f"{label} has multiple spec language markers")
+            continue
+        if markers[0] != expected:
+            errors.append(
+                f"{label} declares spec language {markers[0]!r}; expected {expected!r}"
+            )
+            continue
+        prose = SPEC_LANGUAGE_MARKER_RE.sub("", text)
+        if expected.split("-", 1)[0] == "vi" and not VIETNAMESE_PROSE_RE.search(prose):
+            errors.append(
+                f"{label} declares Vietnamese but has no Vietnamese-language prose evidence"
+            )
+    return Check(
+        "spec_language",
+        "FAIL" if errors else "PASS",
+        "; ".join(errors)
+        if errors
+        else f"{len(files)} current spec file(s) declare and use {expected}",
+    )
+
+
 def archive_errors(root: Path, archive_root: Path) -> list[str]:
     if not archive_root.exists():
         return []
@@ -370,7 +436,12 @@ def build_log_check(root: Path, required: bool) -> Check:
     )
 
 
-def validate(root: Path, require_openspec: bool, require_project_records: bool) -> list[Check]:
+def validate(
+    root: Path,
+    require_openspec: bool,
+    require_project_records: bool,
+    expected_spec_language: str | None = None,
+) -> list[Check]:
     checks: list[Check] = []
     openspec_root = root / "openspec"
     if not openspec_root.is_dir():
@@ -383,6 +454,7 @@ def validate(root: Path, require_openspec: bool, require_project_records: bool) 
                 Check("baseline_specs", status, detail),
                 Check("active_changes", status, detail),
                 Check("delta_semantics", status, detail),
+                Check("spec_language", status, detail),
                 Check("archive_layout", status, detail),
             ]
         )
@@ -403,6 +475,7 @@ def validate(root: Path, require_openspec: bool, require_project_records: bool) 
                     Check("baseline_specs", "BLOCKED", detail),
                     Check("active_changes", "BLOCKED", detail),
                     Check("delta_semantics", "BLOCKED", detail),
+                    Check("spec_language", "BLOCKED", detail),
                     Check("archive_layout", "BLOCKED", detail),
                 ]
             )
@@ -438,6 +511,7 @@ def validate(root: Path, require_openspec: bool, require_project_records: bool) 
                 "; ".join(delta_errors) if delta_errors else f"{delta_count} delta operation(s) are structurally valid",
             )
         )
+        checks.append(spec_language_check(root, openspec_root, expected_spec_language))
         archived_errors = archive_errors(root, openspec_root / "changes" / "archive")
         checks.append(
             Check(
@@ -456,6 +530,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", default=".", help="Repository root to inspect.")
     parser.add_argument("--require-openspec", action="store_true", help="Fail when the tracked openspec/ contract is absent.")
     parser.add_argument("--require-project-records", action="store_true", help="Require PROJECTSTATUS.md and BUILDLOG.md.")
+    parser.add_argument(
+        "--spec-language",
+        help="Require current baseline and delta specs to declare this BCP 47 language tag.",
+    )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     return parser.parse_args()
 
@@ -466,7 +544,12 @@ def main() -> int:
     if not root.is_dir():
         print(f"Invalid project root: {root}", file=sys.stderr)
         return 2
-    checks = validate(root, args.require_openspec, args.require_project_records)
+    checks = validate(
+        root,
+        args.require_openspec,
+        args.require_project_records,
+        args.spec_language,
+    )
     failures = [check for check in checks if check.status in {"FAIL", "BLOCKED"}]
     if args.json:
         print(json.dumps({"root": str(root), "checks": [asdict(check) for check in checks], "valid": not failures}, indent=2))

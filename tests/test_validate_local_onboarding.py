@@ -279,6 +279,27 @@ class ReleaseHygieneTests(unittest.TestCase):
 
         self.assertEqual(offenders, [])
 
+    def test_frontend_delivery_contract_is_packaged_and_referenced(self) -> None:
+        package_root = Path(__file__).parents[1]
+        skill = (package_root / "SKILL.md").read_text(encoding="utf-8")
+        contract_path = package_root / "references" / "frontend-delivery.md"
+
+        self.assertTrue(contract_path.is_file())
+        self.assertIn("[frontend-delivery.md](references/frontend-delivery.md)", skill)
+
+        contract = contract_path.read_text(encoding="utf-8").lower()
+        required_concepts = (
+            "installed-skill catalog",
+            "find-skills",
+            "explicit user authorization",
+            "design intent",
+            "loading, empty, error, success",
+            "responsive and accessibility",
+            "human visual and usability acceptance",
+        )
+        for concept in required_concepts:
+            self.assertIn(concept, contract)
+
 
 if __name__ == "__main__":
     unittest.main()
