@@ -80,10 +80,11 @@ class ValidatorContractTests(unittest.TestCase):
         self.assertIn("generated uv export", check.detail)
 
     def test_legacy_requirements_recursively_validate_exact_pins(self) -> None:
+        synthetic_vcs_reference = "git+" + "local-fixture/repo"
         self.write("backend/requirements.txt", "-r requirements-base.txt\n-c constraints.txt\n")
         self.write(
             "backend/requirements-base.txt",
-            "fastapi==0.1.0\nrepo @ git+https://example.invalid/repo.git@0123456789abcdef\n",
+            f"fastapi==0.1.0\nrepo @ {synthetic_vcs_reference}@0123456789abcdef\n",
         )
         self.write("backend/constraints.txt", "starlette==0.2.0 ; python_version >= '3.12'\n")
         check = validator.package_manager_source_contract(self.root, False)
@@ -98,7 +99,8 @@ class ValidatorContractTests(unittest.TestCase):
         self.assertIn("does not exist", check.detail)
 
     def test_legacy_requirements_reject_floating_git_reference(self) -> None:
-        self.write("backend/requirements.txt", "repo @ git+https://example.invalid/repo.git@main\n")
+        synthetic_vcs_reference = "git+" + "local-fixture/repo"
+        self.write("backend/requirements.txt", f"repo @ {synthetic_vcs_reference}@main\n")
         check = validator.package_manager_source_contract(self.root, False)
         self.assertEqual(check.status, "FAIL")
         self.assertIn("not exactly pinned", check.detail)
@@ -124,7 +126,7 @@ class ValidatorContractTests(unittest.TestCase):
     def test_existing_cargo_and_go_roots_require_frozen_commands(self) -> None:
         self.write("worker/Cargo.toml", "[package]\nname='worker'\nversion='0.1.0'\n")
         self.write("worker/Cargo.lock")
-        self.write("service/go.mod", "module example.invalid/service\n")
+        self.write("service/go.mod", "module easy2dev/service\n")
         self.write("service/go.sum")
         self.write("scripts/dev.ps1", "cargo build --locked\ngo mod download\n")
         self.assertEqual(validator.dependency_sync_contract(self.root).status, "PASS")
@@ -250,6 +252,32 @@ class ValidatorContractTests(unittest.TestCase):
         checks = validator.validate(self.root, False, True, True, True)
         failures = [check for check in checks if check.status == "FAIL"]
         self.assertEqual(failures, [])
+
+
+class ReleaseHygieneTests(unittest.TestCase):
+    def test_packaged_skill_has_no_placeholder_or_remote_vcs_fixture(self) -> None:
+        package_root = Path(__file__).parents[1]
+        blocked_literals = (
+            ".".join(("example", "invalid")),
+            "git+" + "http://",
+            "git+" + "https://",
+        )
+        release_paths = [package_root / "SKILL.md"]
+        for directory in ("agents", "references", "scripts", "tests"):
+            release_paths.extend(
+                path
+                for path in (package_root / directory).rglob("*")
+                if path.is_file() and path.suffix in {".md", ".py", ".yaml", ".yml"}
+            )
+
+        offenders = []
+        for path in release_paths:
+            content = path.read_text(encoding="utf-8").lower()
+            for blocked in blocked_literals:
+                if blocked in content:
+                    offenders.append(f"{path.relative_to(package_root)}: {blocked}")
+
+        self.assertEqual(offenders, [])
 
 
 if __name__ == "__main__":
