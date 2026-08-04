@@ -1,0 +1,4 @@
+interface:
+  display_name: "Easy2Dev"
+  short_description: "Ship specified, mapped, reproducible software"
+  default_prompt: "Use $easy2dev to resolve the current OpenSpec schema, reconstruct repository truth, and continue the next verified delivery stage."

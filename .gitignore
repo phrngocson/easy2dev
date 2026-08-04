@@ -1,0 +1,12 @@
+sampleOpenSpec/
+.easy2dev/
+.tmp-*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+ABOUT.md
+**/ABOUT.md
+PROJECTSTATUS.md
+BUILDLOG.md
+DEVELOPMENT_RULES.md
+AGENTS.md
